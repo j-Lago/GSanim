@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/MIT.iml" filepath="$PROJECT_DIR$/.idea/MIT.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/GSanim.iml" filepath="$PROJECT_DIR$/.idea/GSanim.iml" />
     </modules>
   </component>
 </project>
