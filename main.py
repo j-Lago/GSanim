@@ -13,8 +13,8 @@ def main():
 
 
     root = Tk()
-    root.title("Laboratório Virtual de Máquinas Elétricas: Motor de Indução Trifásico")
-    root.geometry('+50+50')
+    root.title("Laboratório Virtual de Máquinas Elétricas: Gerador Síncrono Trifásico")
+    root.geometry('+2000+50')
     # root.overrideredirect(True)
 
     gepai = ImageTk.PhotoImage(Image.open('./gepai.png'))

@@ -143,6 +143,8 @@ def hex_to_rgb(hex: str) -> tuple[float, ...]:
     return tuple(int(hex[i:i+2], 16)/255 for i in range(1, len(hex)-1, 2))
 
 
+
+
 class CircularDict(dict):
     def __init__(self, *args):
         dict()

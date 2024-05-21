@@ -26,7 +26,8 @@ def create_rotor(canvas, prims, coils_per_phase, phases=3):
     prims['rotor'] = []
     prims['rotor']['core'] = []
     prims['rotor']['core']['outer'] = Primitive(canvas, **assets[name := 'rotor_outer'], name=name)
-    prims['rotor']['core']['slots'] = circular_pattern(canvas, ['rotor_cutout', 'rotor_cutout_outline'], pattern=phases * coils_per_phase)
+    prims['rotor']['core']['cutout'] = circular_pattern(canvas, ['rotor_cutout'], pattern=2)
+    prims['rotor']['core']['outline'] = circular_pattern(canvas, ['rotor_cutout_outline'], pattern=2)
     prims['rotor']['shaft'] = Primitive(canvas, **assets[name := 'shaft'], name=name)
     prims['rotor']['shaft']['keyway'] = [Primitive(canvas, **assets[name := 'keyway'], name=name),
                                          Primitive(canvas, **assets[name := 'keyway_outline'], name=name)]
@@ -35,16 +36,12 @@ def create_rotor(canvas, prims, coils_per_phase, phases=3):
     prims['rotor']['coil'] = []
     prims['rotor']['coil']['in'] = []
     prims['rotor']['coil']['out'] = []
-    prims['rotor']['coil']['in']['x'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, phase=0, dir_filter='in'))
-    prims['rotor']['coil']['out']['x'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, phase=0, dir_filter='out'))
-    prims['rotor']['coil']['in']['y'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, phase=1, dir_filter='in'))
-    prims['rotor']['coil']['out']['y'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, phase=1, dir_filter='out'))
-    prims['rotor']['coil']['in']['z'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, phase=2, dir_filter='in'))
-    prims['rotor']['coil']['out']['z'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, phase=2, dir_filter='out'))
-    # prims['rotor']['coil']['x'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, 0))
-    # prims['rotor']['coil']['y'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, 1))
-    # prims['rotor']['coil']['z'] = circular_pattern(canvas, ['rotor_esp'], pattern=IndexFilter3ph(phases * coils_per_phase, 2))
-    for phase in 'xyz':
+
+    x0, y0 = assets['rotor_esp']['coords'][0:2]
+    x0 = x0 * 2 /3
+    prims['rotor']['coil']['in']['r'] = [Primitive(canvas, **assets[name := 'rotor_esp'], name=name, transforms=(translate, (-x0 * i, -2*y0))) for i in range(4)]
+    prims['rotor']['coil']['out']['r'] =[Primitive(canvas, **assets[name := 'rotor_esp'], name=name, transforms=(translate, (-x0 * i, 0))) for i in range(4)]
+    for phase in 'r':
         for node in prims.filter_matching_keys('coil', phase):
             node.stroke = scale_rgb(cl[phase], contrast_color_scale)
             node.fill = cl[phase]
@@ -54,16 +51,17 @@ def create_current(canvas, prims, coils_per_phase_s, coils_per_phase_r, phases =
     prims['rotor']['current'] = []
     prims['rotor']['current']['in'] = []
     prims['rotor']['current']['out'] = []
-    prims['rotor']['current']['in']['x'] = circular_pattern(canvas, ['in_r'], pattern=IndexFilter3ph(phases * coils_per_phase_r, phase=0, dir_filter='in'))
-    prims['rotor']['current']['out']['x'] = circular_pattern(canvas, ['out_r'], pattern=IndexFilter3ph(phases * coils_per_phase_r, phase=0, dir_filter='out'))
-    prims['rotor']['current']['in']['y'] = circular_pattern(canvas, ['in_r'], pattern=IndexFilter3ph(phases * coils_per_phase_r, phase=1, dir_filter='in'))
-    prims['rotor']['current']['out']['y'] = circular_pattern(canvas, ['out_r'], pattern=IndexFilter3ph(phases * coils_per_phase_r, phase=1, dir_filter='out'))
-    prims['rotor']['current']['in']['z'] = circular_pattern(canvas, ['in_r'], pattern=IndexFilter3ph(phases * coils_per_phase_r, phase=2, dir_filter='in'))
-    prims['rotor']['current']['out']['z'] = circular_pattern(canvas, ['out_r'], pattern=IndexFilter3ph(phases * coils_per_phase_r, phase=2, dir_filter='out'))
-    for phase in ('xyz'):
+
+    x0, y0 = assets['rotor_esp']['coords'][0:2]
+    x0 = x0 * 2 / 3
+    prims['rotor']['current']['in']['r'] = [Primitive(canvas, **assets[name := 'in_r'], name=name, transforms=(translate, (-x0 * i, -2 * y0))) for i in range(4)]
+    prims['rotor']['current']['out']['r'] = [Primitive(canvas, **assets[name := 'out_r'], name=name, transforms=(translate, (-x0 * i, 0))) for i in range(4)]
+    for phase in ('r'):
         for node in prims.filter_matching_keys('current', phase):
             node.stroke = scale_rgb(cl[phase], contrast_color_scale)
             node.fill = scale_rgb(cl[phase], contrast_color_scale)
+
+
     prims['stator']['current'] = []
     prims['stator']['current']['in'] = []
     prims['stator']['current']['out'] = []
@@ -104,11 +102,11 @@ def create_fields(canvas: NormCanvas, prims: PrimitivesGroup):
 
 
 def create_coil_front(canvas: NormCanvas, prims: PrimitivesGroup, coils_per_phase_s: int, coils_per_phase_r:int, phases:int=3):
+    x0, y0 = assets['rotor_esp']['coords'][0:2]
+    d0 = x0 * 2 / 3
     prims['rotor']['coil_front'] = []
-    prims['rotor']['coil_front']['x'] = circular_pattern(canvas, ['rotor_esp_front'], pattern=IndexFilter3ph(phases * coils_per_phase_r // 2, phase=2, dir_filter='both'))
-    prims['rotor']['coil_front']['y'] = circular_pattern(canvas, ['rotor_esp_front'], pattern=IndexFilter3ph(phases * coils_per_phase_r // 2, phase=0, dir_filter='both'))
-    prims['rotor']['coil_front']['z'] = circular_pattern(canvas, ['rotor_esp_front'], pattern=IndexFilter3ph(phases * coils_per_phase_r // 2, phase=1, dir_filter='both'))
-    for ph in ('xyz'):
+    prims['rotor']['coil_front']['r'] = [Primitive(canvas, **assets[name := 'rotor_esp_front'], name=name, transforms=(translate, (x0-d0*i, 0))) for i in range(4)]
+    for ph in ('r'):
         for node in prims['rotor'].filter_matching_keys('coil_front', ph):
             node.fill = cl[ph]
             node.stipple = 'gray75'
