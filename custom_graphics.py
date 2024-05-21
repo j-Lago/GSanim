@@ -10,7 +10,7 @@ from gvec import GraphicVec2
 
 
 
-def mit_draw(canvas, prims, s_coils_per_phase, r_coils_per_phase):
+def gs_draw(canvas, prims, s_coils_per_phase, r_coils_per_phase):
 
     create_stator(canvas, prims, s_coils_per_phase)
     create_rotor(canvas, prims, r_coils_per_phase)
@@ -80,23 +80,23 @@ def create_current(canvas, prims, coils_per_phase_s, coils_per_phase_r, phases =
 def create_fields(canvas: NormCanvas, prims: PrimitivesGroup):
     prims['stator']['field'] = []
     prims['stator']['field']['vec'] = []
-    for i, ph in enumerate('abcs'):
-        prims['stator']['field']['vec'][ph] = GraphicVec2(0.4, 0.0, canvas, stroke=cl[ph], transforms=(rotate, 2 * pi / 3 * i), name='field_vec_' + ph)
+    for i, ph in enumerate('abcsl'):
+        prims['stator']['field']['vec'][ph] = GraphicVec2(0.4, 0.0, canvas, stroke=cl[ph], transforms=(rotate, 2 * pi / 3 * i if i < 3 else 0.0), name='field_vec_' + ph)
 
     prims['rotor']['field'] = []
     prims['rotor']['field']['vec'] = []
-    for i, ph in enumerate('xyzr'):
-        prims['rotor']['field']['vec'][ph] = GraphicVec2(0.4, 0.0, canvas, stroke=cl[ph], transforms=(rotate, 2 * pi / 3 * i), name='field_vec_' + ph)
+    for i, ph in enumerate('r'):
+        prims['rotor']['field']['vec'][ph] = GraphicVec2(0.4, 0.0, canvas, stroke=cl[ph], transforms=(rotate, 0), name='field_vec_' + ph)
 
     prims['stator']['field']['lines'] = []
-    for i, ph in enumerate('abcs'):
-        prims['stator']['field']['lines'][ph] = create_flux_from_quarter(canvas, orientation=2 * pi / 3 * i, color=cl[ph])
+    for i, ph in enumerate('abcsl'):
+        prims['stator']['field']['lines'][ph] = create_flux_from_quarter(canvas, orientation=2 * pi / 3 * i if i < 3 else 0.0, color=cl[ph])
         prims['stator']['field']['lines'][ph].visible = False
     prims['stator']['field']['lines']['s'].rotate(pi)
 
     prims['rotor']['field']['lines'] = []
-    for i, ph in enumerate('xyzr'):
-        prims['rotor']['field']['lines'][ph] = create_flux_from_quarter(canvas, orientation=2 * pi / 3 * i, color=cl[ph])
+    for i, ph in enumerate('r'):
+        prims['rotor']['field']['lines'][ph] = create_flux_from_quarter(canvas, orientation=0, color=cl[ph])
         prims['rotor']['field']['lines'][ph].visible = False
 
 

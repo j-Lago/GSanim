@@ -27,6 +27,9 @@ def main():
     widgets['fps'] = Label(root, text='fps:', font=fonts['fps'], fg='#D5DBDB', bg=cl['bg'])
     widgets['fps'].grid(row=0, column=12, stick=N+E)
 
+    widgets['time_factor'] = Label(root, text='...', font=fonts['fps'], fg='#D5DBDB', bg=cl['bg'])
+    widgets['time_factor'].grid(row=0, column=10, stick=N + E)
+
 
     default = {'font': fonts['default'], 'bg': cl['bg'], 'fg': cl['default_font']}
     root.configure(bg=default['bg'])
@@ -152,16 +155,12 @@ def main():
     widgets['Tind']    .grid(row=row0 + 3, column=col0+5, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
     widgets['f']       .grid(row=row0 + 3, column=col0+6, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
 
-
-
-
-
-
-
-
-
-    widgets['time_factor'] = Label(root, text='...', **default)
     widgets['figs'] = (fig0, fig1)
+
+
+
+    CustomAnim(canvas, widgets).loop()
+    root.mainloop()
 
     CustomAnim(canvas, widgets).loop()
     root.mainloop()
