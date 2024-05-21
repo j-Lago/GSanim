@@ -15,6 +15,7 @@ from typing import Literal
 from machine import SynchronousGenerator
 from custom_graphics import gs_draw, circular_pattern, IndexFilter3ph, create_stator
 from threading import Thread, Event
+import globals
 
 def plot_thread(event_redraw: Event, figs):
     while True:
@@ -83,14 +84,14 @@ class CustomAnim(Animation):
         self.sel_dynamic_color.key = '3phase'
 
         self.sel_mount = CircularDict({'normal': True, 'hidden': False})
-        self.sel_stator_field = CircularDict({'abc': 0, 'abcs': 1, 'a': 2, 'b': 3, 'c': 4, 's': 5})
+        self.sel_stator_field = CircularDict({'abc': 0, 'abcs': 1, 'a': 2, 'b': 3, 'c': 4, 's': 5, 'l': 6, 'sl': 7})
         self.sel_stator_field.key = 's'
 
         self.sel_rotor_field = CircularDict({'xyz': 0, 'xyzr': 1, 'x': 2, 'y': 3, 'z': 4, 'r': 5})
         self.sel_rotor_field.key = 'r'
 
         self.sel_fig1 = CircularDict({'': 30})  #  'atributo': ylim
-        self.sel_fig0 = CircularDict({'V_abc': 1.2, 'I_abc': 1, 'E_abc': 1.2})  # 'atributo': ylim
+        self.sel_fig0 = CircularDict({'V_abc': 1.2, 'I_abc': 10, 'E_abc': 1.2})  # 'atributo': ylim
 
         self.sel_stator_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3), '8': (8, 3)})  # versão do estator com n espiras por fase
         self.sel_rotor_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3)})  # versão do estator com n espiras por fase
@@ -187,8 +188,6 @@ class CustomAnim(Animation):
         ax.set_ylim(-self.sel_fig1.value, self.sel_fig1.value)
 
 
-
-
     def refresh(self, _, dt, frame_count):
         self.update_fps_info(dt)
         redraw_plt = frame_count % self.plot_downsample_factor == 0
@@ -197,7 +196,7 @@ class CustomAnim(Animation):
 
         sim = self.gs.solve(1.0, self.th_rot - self.th_grid, return_type=dict)
 
-        if redraw_plt and self.run:
+        if redraw_plt:
             self.update_fig1(sim)
 
         alpha = 2 * pi / 3
@@ -227,8 +226,8 @@ class CustomAnim(Animation):
         if self.sel_dynamic_color.value:
             self.prims['stator']['coil_front'].visible = False
             self.prims['rotor']['coil_front'].visible = False
-            self.color_stator_coils(I1_abc)
-            self.color_rotor_coils(Ir_xyz)
+            self.color_stator_coils(sim['I_abc'])
+            self.color_rotor_coils(sim['Ir'])
         else:
             self.prims['stator']['coil_front'].visible = self.en_stator_coil_front and self.prims['stator'].visible
             self.prims['rotor']['coil_front'].visible = self.en_rotor_coil_front and self.prims['rotor'].visible
@@ -275,7 +274,7 @@ class CustomAnim(Animation):
             self.f_rot += DT * 377/self.inertia * dt - (self.f_rot-self.f_grid)*2*pi* self.dump * dt
             self._f_rot_inc = 0.0
         else:
-            raise NotImplementedError
+            self.f_rot += self._f_rot_inc
 
     def process_inc(self):
         if self.run:
@@ -383,13 +382,13 @@ class CustomAnim(Animation):
 
 
 
-        for ph in 'abcs':
+        for ph in 'abcsl':
             self.prims['stator']['field']['vec'][ph].visible = self.en_stator_field_vec and (ph in self.sel_stator_field.key)
 
         for ph in 'r':
             self.prims['rotor']['field']['vec'][ph].visible = self.en_rotor_field_vec and (ph in self.sel_rotor_field.key)
 
-        for ph in 'abcs':
+        for ph in 'abcsl':
             self.prims['stator']['field']['lines'][ph].visible = self.en_stator_field_lines and (ph in self.sel_stator_field.key)
 
 
@@ -476,8 +475,8 @@ class CustomAnim(Animation):
         self.widgets['w_rotor'] .config(text=f'{self.f_rot * self.sel_fr_unit.value        :4.1f}')
         self.widgets['w_grid']  .config(text=f'{self.f_grid * self.sel_fg_unit.value       :4.1f}')
         self.widgets['Pconv']   .config(text=f'{sim['Sout'].real * self.sel_Pconv_unit.value :4.2f}')
-        # self.widgets['slip']    .config(text=f'{self.mit.s                                 :4.2f}')
-        self.widgets['Tind']    .config(text=f'{sim['Te']                                    :4.2f}')
+        self.widgets['delta']   .config(text=f'{((self.th_rot - self.th_grid) % 2*pi) / pi * 180 :4.2f}')
+        self.widgets['Tind']    .config(text=f'{sim['Te']                                   :4.2f}')
         # self.widgets['f']       .config(text=f'{                                 :4.1f}')
         self.widgets['time_factor'].config(text=f"{self.time_factor:>6.1f} x")
 
@@ -497,7 +496,6 @@ class CustomAnim(Animation):
         self.f_grid = 60.0
         self._f_ref_inc = 0.0
         self._f_rot_inc = 0.0
-
 
         if reset_and_stop:
             self.run = False
@@ -528,7 +526,11 @@ class CustomAnim(Animation):
             self.run = current_state
 
         def toggle_run():
-            self.run = not self.run
+            if self.freeze:
+                self.run = True
+                self.freeze = False
+            else:
+                self.run = not self.run
 
         def toggle_sim():
             if self.en_sim_inertia:
@@ -544,16 +546,12 @@ class CustomAnim(Animation):
 
             match var_name:
                 case 'fs':
-                    if self.run:
                         self._f_ref_inc = clip(self.f_ref + increment, v_min, v_max) - self.f_ref
                 case 'fr':
-                    if self.run:
                         self._f_rot_inc = clip(self.f_rot + increment, v_min, v_max) - self.f_rot
                 case 'fg':
-                    if self.run:
                         self._fg_inc = clip(self.f_grid + increment, v_min, v_max) - self.f_grid
                 case 'Tturb':
-                    if self.run:
                         self.Tturb = clip(self.Tturb + increment, v_min, v_max)
 
                 case 'delay':
@@ -635,13 +633,23 @@ class CustomAnim(Animation):
             elif collision_circle_point(self.prims['stator']['core']['outer'][0], (x, y)):
                 self.prims['stator'].toggle_visible()
 
+        def freeze():
+            self.freeze = not self.freeze
+            if not self.freeze:
+                self.run = True
+
+        def reload():
+            global __reload
+            globals.set_reload(True)
+            self._close_next_refresh = True
+
 
         dw_inc = 0.89   #0.83333333333333333333333333
         f_max = 70
-        self.canvas.window.bind('+', lambda event: inc_value('fs', 1, -f_max, f_max))
-        self.canvas.window.bind('-', lambda event: inc_value('fs', -1, -f_max, f_max))
-        self.canvas.window.bind('.', lambda event: inc_value('fr', -1, -f_max, f_max))
-        self.canvas.window.bind(',', lambda event: inc_value('fr', 1, -f_max, f_max))
+        self.canvas.window.bind('+', lambda event: inc_value('fs', 0.2, -f_max, f_max))
+        self.canvas.window.bind('-', lambda event: inc_value('fs', -0.2, -f_max, f_max))
+        self.canvas.window.bind(',', lambda event: inc_value('fr', -0.2, -f_max, f_max))
+        self.canvas.window.bind('.', lambda event: inc_value('fr', 0.2, -f_max, f_max))
         self.canvas.window.bind('<Right>', lambda event: inc_value('fg', dw_inc, -f_max, f_max))
         self.canvas.window.bind('<Left>', lambda event: inc_value('fg', -dw_inc, -f_max, f_max))
 
@@ -658,7 +666,8 @@ class CustomAnim(Animation):
         self.canvas.window.bind('<space>', lambda event: toggle_run())
         # self.canvas.window.bind('<Return>', lambda event: toggle_sim())
         self.canvas.window.bind('<F1>', lambda event: show_binds())
-        # self.canvas.window.bind('<F5>', lambda event: reset())
+        self.canvas.window.bind('<F4>', lambda event: freeze())
+        self.canvas.window.bind('<F5>', lambda event: reload())
         self.canvas.window.bind('<Escape>', lambda event: self.reset_time(reset_and_stop=True))
         self.canvas.window.bind('<0>',     lambda event: self.reset_time())
 

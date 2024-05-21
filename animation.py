@@ -11,6 +11,7 @@ class Animation(ABC):
         self._t_init = time()
         self._t_start = 0.0
         self._frame_count = 0
+        self.freeze = False
 
         self.canvas = canvas
         self.frame_delay = frame_delay
@@ -19,8 +20,6 @@ class Animation(ABC):
 
         def close_next_refresh():
             self._close_next_refresh = True
-
-
         self.canvas.window.protocol("WM_DELETE_WINDOW", close_next_refresh)
 
 
@@ -39,7 +38,8 @@ class Animation(ABC):
 
     def loop(self):
         t, dt, frame_count = self._start_frame_time_counter()
-        self.refresh(t, dt, frame_count)
+        if not self.freeze:
+            self.refresh(t, dt, frame_count)
 
         if not self._close_next_refresh:
             self.canvas.window.after(self.frame_delay, self.loop)

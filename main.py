@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from NormCanvas import NormCanvas
 from copy import copy
-
+import globals
+import time
 
 def main():
     WIDTH, HEIGHT = 700, 700
@@ -14,7 +15,7 @@ def main():
 
     root = Tk()
     root.title("Laboratório Virtual de Máquinas Elétricas: Gerador Síncrono Trifásico")
-    root.geometry('+2000+50')
+    root.geometry('+50+50')
     # root.overrideredirect(True)
 
     gepai = ImageTk.PhotoImage(Image.open('./gepai.png'))
@@ -100,7 +101,7 @@ def main():
     Label(root, text='stator', **default_instruments).grid(row=row0 + 1, column=col0+0, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='rotor',  **default_instruments).grid(row=row0 + 1, column=col0+1, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='field',   **default_instruments).grid(row=row0 + 1, column=col0+2, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='slip',   **default_instruments).grid(row=row0 + 1, column=col0+3, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='delta',   **default_instruments).grid(row=row0 + 1, column=col0+3, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='Pconv',  **default_instruments).grid(row=row0 + 1, column=col0+4, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='Tind',   **default_instruments).grid(row=row0 + 1, column=col0+5, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='f',      **default_instruments).grid(row=row0 + 1, column=col0 + 6, stick=W + E + N + S, padx=1, pady=1)
@@ -108,7 +109,7 @@ def main():
     widgets['w_stator_um'] = Label(root, text='[rad/s]', **default_instruments)
     widgets['w_rotor_um']  = Label(root, text='[rpm]'  , **default_instruments)
     widgets['w_grid_um']   = Label(root, text='[Hz]'   , **default_instruments)
-    widgets['slip_um']     = Label(root, text='[pu]'   , **default_instruments)
+    widgets['delta_um']     = Label(root, text='[°]'   , **default_instruments)
     widgets['Pconv_um']    = Label(root, text='[kW]'   , **default_instruments)
     widgets['Tind_um']     = Label(root, text='[Nm]'   , **default_instruments)
     widgets['f_um']        = Label(root, text='[Hz]'   , **default_instruments)
@@ -116,7 +117,7 @@ def main():
     widgets['w_stator_um'].grid(row=row0 + 2, column=col0+0, stick=W+E+N+S, padx=1, pady=1)
     widgets['w_rotor_um'] .grid(row=row0 + 2, column=col0+1, stick=W+E+N+S, padx=1, pady=1)
     widgets['w_grid_um']  .grid(row=row0 + 2, column=col0+2, stick=W+E+N+S, padx=1, pady=1)
-    widgets['slip_um']    .grid(row=row0 + 2, column=col0+3, stick=W+E+N+S, padx=1, pady=1)
+    widgets['delta_um']    .grid(row=row0 + 2, column=col0+3, stick=W+E+N+S, padx=1, pady=1)
     widgets['Pconv_um']   .grid(row=row0 + 2, column=col0+4, stick=W+E+N+S, padx=1, pady=1)
     widgets['Tind_um']    .grid(row=row0 + 2, column=col0+5, stick=W+E+N+S, padx=1, pady=1)
     widgets['f_um']       .grid(row=row0 + 2, column=col0+6, stick=W+E+N+S, padx=1, pady=1)
@@ -142,15 +143,15 @@ def main():
     widgets['w_stator'] = Label(root, text='', **default_instruments)
     widgets['w_rotor']  = Label(root, text='', **default_instruments)
     widgets['w_grid']   = Label(root, text='', **default_instruments)
-    widgets['slip']     = Label(root, text='', **default_instruments)
+    widgets['delta']     = Label(root, text='', **default_instruments)
     widgets['Pconv']    = Label(root, text='', **default_instruments)
     widgets['Tind']     = Label(root, text='', **default_instruments)
-    widgets['f']     = Label(root, text='', **default_instruments)
+    widgets['f']        = Label(root, text='', **default_instruments)
 
     widgets['w_stator'].grid(row=row0 + 3, column=col0+0, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
     widgets['w_rotor'] .grid(row=row0 + 3, column=col0+1, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
     widgets['w_grid']  .grid(row=row0 + 3, column=col0+2, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
-    widgets['slip']    .grid(row=row0 + 3, column=col0+3, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
+    widgets['delta']   .grid(row=row0 + 3, column=col0+3, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
     widgets['Pconv']   .grid(row=row0 + 3, column=col0+4, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
     widgets['Tind']    .grid(row=row0 + 3, column=col0+5, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
     widgets['f']       .grid(row=row0 + 3, column=col0+6, stick=W+E+N+S, ipadx=1, padx=1, pady=1)
@@ -162,9 +163,10 @@ def main():
     CustomAnim(canvas, widgets).loop()
     root.mainloop()
 
-    CustomAnim(canvas, widgets).loop()
-    root.mainloop()
-
 
 if __name__ == '__main__':
-    main()
+    globals.init(True)
+    while globals.get_reload():
+        globals.set_reload(False)
+        time.sleep(0.5)
+        main()
