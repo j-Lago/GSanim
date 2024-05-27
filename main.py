@@ -9,6 +9,7 @@ from copy import copy
 import globals
 import time
 
+
 def main():
     WIDTH, HEIGHT = 700, 700
 
@@ -98,13 +99,14 @@ def main():
     row0, col0 = 4, 6
     canvas = NormCanvas(root, bg=cl['bg'], height=HEIGHT, width=WIDTH, highlightbackground=cl['bg'])
     canvas.grid(row=0, column=col0, columnspan=7, rowspan=8)
-    Label(root, text='stator', **default_instruments).grid(row=row0 + 1, column=col0+0, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='rotor',  **default_instruments).grid(row=row0 + 1, column=col0+1, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='field',   **default_instruments).grid(row=row0 + 1, column=col0+2, stick=W+E+N+S, padx=1, pady=1)
+
+    Label(root, text='stator pg', **default_instruments).grid(row=row0 + 1, column=col0+0, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='rotor ,.',  **default_instruments).grid(row=row0 + 1, column=col0+1, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='grid ←→',   **default_instruments).grid(row=row0 + 1, column=col0+2, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='delta',   **default_instruments).grid(row=row0 + 1, column=col0+3, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='Pout',  **default_instruments).grid(row=row0 + 1, column=col0+4, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='Te',   **default_instruments).grid(row=row0 + 1, column=col0+5, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='f',      **default_instruments).grid(row=row0 + 1, column=col0 + 6, stick=W + E + N + S, padx=1, pady=1)
+    Label(root, text='V -=',   **default_instruments).grid(row=row0 + 1, column=col0+5, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='E 09',      **default_instruments).grid(row=row0 + 1, column=col0 + 6, stick=W + E + N + S, padx=1, pady=1)
 
     widgets['w_stator_um'] = Label(root, text='[rad/s]', **default_instruments)
     widgets['w_rotor_um']  = Label(root, text='[rpm]'  , **default_instruments)
@@ -112,7 +114,7 @@ def main():
     widgets['delta_um']     = Label(root, text='[°]'   , **default_instruments)
     widgets['Pconv_um']    = Label(root, text='[pu]'   , **default_instruments)
     widgets['Tind_um']     = Label(root, text='[pu]'   , **default_instruments)
-    widgets['f_um']        = Label(root, text='[Hz]'   , **default_instruments)
+    widgets['f_um']        = Label(root, text='[pu]'   , **default_instruments)
 
     widgets['w_stator_um'].grid(row=row0 + 2, column=col0+0, stick=W+E+N+S, padx=1, pady=1)
     widgets['w_rotor_um'] .grid(row=row0 + 2, column=col0+1, stick=W+E+N+S, padx=1, pady=1)
@@ -169,3 +171,5 @@ if __name__ == '__main__':
         globals.set_reload(False)
         time.sleep(0.7)
         main()
+
+

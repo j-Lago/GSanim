@@ -11,11 +11,11 @@ class SynchronousGenerator:
         self.f_nom = f_nom
         self.p = p
 
-    def solve(self, V: complex, theta_E: float = 0.0, f: float = None, return_type=tuple):
+    def solve(self, V: complex, If: float = 1.0, theta_E: float = 0.0, f: float = None, return_type=tuple):
         if f is None:
             f = self.f_nom
         Xs = self.Xs if f is None else self.Xs * f / self.f_nom
-        E = rect(self.E_nom / self.f_nom * f, theta_E)
+        E = rect(self.E_nom / self.f_nom * f, theta_E) * If
         I = (E - V) / complex(self.R, Xs)
         Pe = 3 * (E * I.conjugate()).real
         w = f*pi*4.0/self.p
@@ -28,7 +28,7 @@ class SynchronousGenerator:
         raise ValueError("'return_type' de ve ser 'tuple' ou 'dict")
 
 
-    def solve_Te_vs_delta(self, V_bar: float, delta: np.ndarray, f=None, return_type=dict):
+    def solve_Te_vs_delta(self, V_bar: float, delta: np.ndarray, If=1.0, f=None, return_type=dict):
 
         V = np.empty_like(delta, dtype=complex)
         E = np.empty_like(delta, dtype=complex)
@@ -37,7 +37,7 @@ class SynchronousGenerator:
         I = np.empty_like(delta, dtype=complex)
         Sout = np.empty_like(delta, dtype=complex)
         for k in range(len(delta)):
-            E[k], I[k], Te[k], Pe[k], Sout[k], V[k] = self.solve(V_bar, delta[k], f, return_type=tuple)
+            E[k], I[k], Te[k], Pe[k], Sout[k], V[k] = self.solve(V_bar, If=If, theta_E=delta[k], f=f, return_type=tuple)
 
         if return_type == tuple:
             return E, I, Te, Pe, Sout, V

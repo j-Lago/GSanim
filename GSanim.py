@@ -48,6 +48,8 @@ class CustomAnim(Animation):
         self._f_rot_inc = None
         self._f_grid_inc = None
 
+        self.v_grid = None
+        self.i_field = None
         self.f_grid = None
         self.f_ref = None
         self.f_rot = None
@@ -102,7 +104,7 @@ class CustomAnim(Animation):
         self.sel_fr_unit = CircularDict({'Hz': 1.0, 'rad/s': 2 * pi, 'rpm': 60})  # 'um': fator de conversão
         self.sel_fg_unit = CircularDict({'Hz': 1.0, 'rad/s': 2 * pi, 'rpm': 60})  # 'um': fator de conversão
         self.sel_Pout_unit = CircularDict({'pu': 0.1 / 1.5, 'kW': 0.001, 'hp': 0.00134102, 'cv': 0.00135962})  # 'um': fator de conversão
-        self.sel_Te_unit = CircularDict({'pu': 25.05, 'Nm': 1})  # 'um': fator de conversão
+        self.sel_Vg_unit = CircularDict({'pu': 1.0})  # 'um': fator de conversão
 
         self.gs = SynchronousGenerator(1.0, 60.0, .12, 0.0)
         self.Tturb = .0
@@ -195,7 +197,7 @@ class CustomAnim(Animation):
             dt = 0.0
         self._previous_run = self.run
 
-        sim = self.gs.solve(1.0, self.th_rot - self.th_grid, return_type=dict)
+        sim = self.gs.solve(self.v_grid, self.i_field, self.th_rot - self.th_grid, return_type=dict)
 
         if redraw_plt:
             self.update_fig1(sim)
@@ -363,7 +365,8 @@ class CustomAnim(Animation):
 
     def update_fields(self, sim):
 
-        stator_width_factor = 1
+        stator_width_factor = 5
+        rotor_width_factor = 5
 
         for i, ph in enumerate('abc'):
             self.prims['stator']['field']['vec'][ph].scale(sim['I_abc'][i])
@@ -376,14 +379,18 @@ class CustomAnim(Animation):
         self.prims['stator']['field']['lines']['s'].width = abs(res_s) * stator_width_factor
         self.prims['stator']['field']['lines']['s'].rotate(pi + phase(res_s))
 
-        liq = self.prims['stator']['field']['vec']['s'][0].to_complex() + self.prims['rotor']['field']['vec']['r'][0].to_complex()
-        self.prims['stator']['field']['vec']['l'][0].from_complex(liq)
+        liq = complex(0, 0)
+        for i in range(3):
+            liq += rect(sim['I_abc'][i], i*2*pi/3)
+        liq += rect((self.f_grid-self.f_ref)/60, self.th_grid-self.th_ref)
+
+        self.prims['stator']['field']['vec']['l'][0].scale(abs(0))
         self.prims['stator']['field']['lines']['l'].width = abs(liq) * stator_width_factor
-        # self.prims['rotor']['field']['lines']['l'].rotate(-phase(liq))
+        self.prims['stator']['field']['lines']['l'].rotate(self.delta + self.th_rot)
 
 
         Ir = abs(sim['If'])
-        self.prims['rotor']['field']['lines']['r'].width = abs(Ir)
+        self.prims['rotor']['field']['lines']['r'].width = abs(Ir) * rotor_width_factor
 
 
 
@@ -459,7 +466,7 @@ class CustomAnim(Animation):
         ax = self.widgets['figs'][1].axes[0]
 
         delta = np.linspace(-pi*0.1, pi*1.1, 100)
-        E, I, Te, Pe, Sout, V = self.gs.solve_Te_vs_delta(1, delta, return_type=tuple)
+        E, I, Te, Pe, Sout, V = self.gs.solve_Te_vs_delta(self.v_grid, delta, If=self.i_field, return_type=tuple)
 
         self.plt_lines['Tturb'].set_ydata((self.Tturb*2*pi*60.0,))
         self.plt_lines['delta'].set_xdata((phase(sim['E']) - phase(sim['V']),))
@@ -469,7 +476,7 @@ class CustomAnim(Animation):
         # self.plt_lines['Pturb_marker'].set_ydata((self.Tturb*2*pi*60.0,))
         # self.plt_lines['Pturb_marker'].set_xdata((phase(sim['E']) - phase(sim['V']),))
 
-        self.plt_lines['Pout_marker'].set_ydata(sim['Sout'].real)
+        self.plt_lines['Pout_marker'].set_ydata((sim['Sout'].real,))
         self.plt_lines['Pout_marker'].set_xdata((phase(sim['E']) - phase(sim['V']),))
 
         # self.plt_lines['Ix'].set_color(cl[self.sel_fig1.key])
@@ -510,8 +517,9 @@ class CustomAnim(Animation):
         self.widgets['w_grid']  .config(text=f'{self.f_grid * self.sel_fg_unit.value       :4.1f}')
         self.widgets['Pconv']   .config(text=f'{sim['Sout'].real * self.sel_Pout_unit.value :4.2f}')
         self.widgets['delta']   .config(text=f'{self.delta / pi * 180 :4.2f}')
-        self.widgets['Tind']    .config(text=f'{sim['Te'] * self.sel_Te_unit.value         :4.2f}')
-        self.widgets['f']       .config(text=f'{self.f_grid   - self.f_ref                  :4.1f}')
+        # self.widgets['Tind']    .config(text=f'{sim['Te'] * self.sel_Te_unit.value         :4.2f}')
+        self.widgets['Tind'].config(text=f'{self.v_grid * self.sel_Vg_unit.value         :4.2f}')
+        self.widgets['f']       .config(text=f'{self.i_field             :4.2f}')
         self.widgets['time_factor'].config(text=f"{self.time_factor:>6.1f} x")
 
     def reset_time(self, reset_and_stop=False):
@@ -528,6 +536,8 @@ class CustomAnim(Animation):
         self.f_rot = 60.0
         self.f_ref = 0.0
         self.f_grid = 60.0
+        self.v_grid = 1.0
+        self.i_field = 1.0
         self._f_ref_inc = 0.0
         self._f_rot_inc = 0.0
         self._f_grid_inc = 0.0
@@ -583,7 +593,7 @@ class CustomAnim(Animation):
                 self.en_sim_inertia = True
 
 
-        def inc_value(var_name: Literal['fg', 'fs', 'fr', 'delay', 'time_factor', 'Tres'],
+        def inc_value(var_name: Literal['v', 'fg', 'fs', 'fr', 'delay', 'time_factor', 'Tres'],
                       increment: int | float,
                       v_min: int | float,
                       v_max: int | float):
@@ -597,7 +607,10 @@ class CustomAnim(Animation):
                         self._f_grid_inc = clip(self.f_grid + increment, v_min, v_max) - self.f_grid
                 case 'Tturb':
                         self.Tturb = clip(self.Tturb + increment, v_min, v_max)
-
+                case 'v':
+                        self.v_grid = clip(self.v_grid + increment, v_min, v_max)
+                case 'e':
+                    self.i_field = clip(self.i_field + increment, v_min, v_max)
                 case 'delay':
                     self.frame_delay = int(clip(self.frame_delay + increment, v_min, v_max))
                     print(f'(/*) time factor: {self.frame_delay}')
@@ -690,8 +703,8 @@ class CustomAnim(Animation):
 
         dw_inc = 0.89   #0.83333333333333333333333333
         f_max = 70
-        self.canvas.window.bind('+', lambda event: inc_value('fs', 0.25, -f_max, f_max))
-        self.canvas.window.bind('-', lambda event: inc_value('fs', -0.25, -f_max, f_max))
+        self.canvas.window.bind('<Prior>', lambda event: inc_value('fs', 0.25, -f_max, f_max))
+        self.canvas.window.bind('<Next>', lambda event: inc_value('fs', -0.25, -f_max, f_max))
 
         self.canvas.window.bind(',', lambda event: inc_value('fr', -0.25, -f_max, f_max))
         self.canvas.window.bind('.', lambda event: inc_value('fr', 0.25, -f_max, f_max))
@@ -702,6 +715,11 @@ class CustomAnim(Animation):
         self.canvas.window.bind('<Left>', lambda event: inc_value('fg', -0.25, -f_max, f_max))
         self.canvas.window.bind('<Shift-Right>', lambda event: inc_value('fg', 10*0.25, -f_max, f_max))
         self.canvas.window.bind('<Shift-Left>', lambda event: inc_value('fg', -10*0.25, -f_max, f_max))
+
+        self.canvas.window.bind('<0>', lambda event: inc_value('e', 0.05, 0.5, 1.5))
+        self.canvas.window.bind('<9>', lambda event: inc_value('e', -0.05, 0.5, 1.5))
+        self.canvas.window.bind('=', lambda event: inc_value('v', 0.05, 0.5, 1.5))
+        self.canvas.window.bind('-', lambda event: inc_value('v', -0.05, 0.5, 1.5))
 
         self.canvas.window.bind('<Up>', lambda event: inc_value('Tturb', self.Tturb0/50, -self.Tturb0, self.Tturb0))
         self.canvas.window.bind('<Down>', lambda event: inc_value('Tturb', -self.Tturb0/50, -self.Tturb0, self.Tturb0))
@@ -723,7 +741,7 @@ class CustomAnim(Animation):
         self.canvas.window.bind('<F4>', lambda event: freeze())
         self.canvas.window.bind('<F5>', lambda event: reload())
         self.canvas.window.bind('<Escape>', lambda event: self.reset_time(reset_and_stop=True))
-        self.canvas.window.bind('<0>',     lambda event: self.reset_time())
+        self.canvas.window.bind('<End>',     lambda event: self.reset_time())
 
         self.canvas.window.bind('m', lambda event: change_slots('stator'))
         self.canvas.window.bind('n', lambda event: change_slots('rotor'))
