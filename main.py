@@ -36,7 +36,7 @@ def main():
     default = {'font': fonts['default'], 'bg': cl['bg'], 'fg': cl['default_font']}
     root.configure(bg=default['bg'])
     fig0, _ = plt.subplots(1, 1, figsize=(9, 3.5))
-    fig1, _ = plt.subplots(1, 2, figsize=(9, 3.5), width_ratios=[1.5, 1])
+    fig1, _ = plt.subplots(1, 2, figsize=(9, 3.5), width_ratios=[2.5, 1])
 
 
 

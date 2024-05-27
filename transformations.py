@@ -158,6 +158,9 @@ class CircularDict(dict):
 
     @key.setter
     def key(self, value):
+        self.set_current_key(value)
+
+    def set_current_key(self, value):
         if value not in list(self.keys()):
             raise ValueError(f"a 'key' fornecida não faz parte do dicionário. São chaves válidas {list(self.keys())}")
         self._current_key = value

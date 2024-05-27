@@ -1,5 +1,6 @@
 import tkinter as tk
 from cmath import polar, rect, phase
+from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,7 +45,7 @@ class CustomAnim(Animation):
     def __init__(self, canvas: NormCanvas, widgets: dict = None):
         super().__init__(canvas, frame_delay=0)
 
-        self.plt_lines = None
+        self.plt_lines = {}
         self.widgets = widgets
 
         self._f_ref_inc = None
@@ -68,8 +69,8 @@ class CustomAnim(Animation):
         self.time_factor = None
         self.reset_time()
 
-        self.inertia = 0.001
-        self.dump = 20
+        self.inertia = 0.0002
+        self.dump = 40
 
         self.run = True
         self._previous_run = True
@@ -94,13 +95,13 @@ class CustomAnim(Animation):
         self.sel_dynamic_color = CircularDict({'3phase': False, 'amplitude': True})
 
         self.sel_stator_field = CircularDict({'abc': 0, 'abcs': 1, 'a': 2, 'b': 3, 'c': 4, 's': 5, 'l': 6, 'sl': 7})
-        self.sel_stator_field.key = 's'
+        self.sel_stator_field.key = 'sl'
 
-        self.sel_rotor_field = CircularDict({'xyz': 0, 'xyzr': 1, 'x': 2, 'y': 3, 'z': 4, 'r': 5})
+        self.sel_rotor_field = CircularDict({'r': 0})
         self.sel_rotor_field.key = 'r'
 
-        self.sel_fig1 = CircularDict({'': (-5, 30)})  #  'atributo': ylim
-        self.sel_fig0 = CircularDict({'V_abc': 1.2, 'I_abc': 10, 'E_abc': 1.2, 'f_grt': (30.0, 90.0)})  # 'atributo': ylim
+        self.sel_fig1 = CircularDict({'': (-0.5, 3.5)})  #  'atributo': ylim
+        self.sel_fig0 = CircularDict({'V_abc': 1.2, 'I_abc': 1.2, 'E_abc': 1.2, 'VE_lr': 1.2, 'f_grt': (30.0, 90.0)})  # 'atributo': ylim
 
         self.sel_stator_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3), '8': (8, 3)})  # versão do estator com n espiras por fase
         self.sel_rotor_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3)})  # versão do estator com n espiras por fase
@@ -109,12 +110,12 @@ class CustomAnim(Animation):
         self.sel_fs_unit = CircularDict({'Hz': 1.0, 'rad/s': 2 * pi, 'rpm': 60})  # 'um': fator de conversão
         self.sel_fr_unit = CircularDict({'Hz': 1.0, 'rad/s': 2 * pi, 'rpm': 60})  # 'um': fator de conversão
         self.sel_fg_unit = CircularDict({'Hz': 1.0, 'rad/s': 2 * pi, 'rpm': 60})  # 'um': fator de conversão
-        self.sel_Pout_unit = CircularDict({'pu': 0.1 / 1.5, 'kW': 0.001, 'hp': 0.00134102, 'cv': 0.00135962})  # 'um': fator de conversão
+        self.sel_Pout_unit = CircularDict({'pu': 1.0})  # 'um': fator de conversão
         self.sel_Vg_unit = CircularDict({'pu': 1.0})  # 'um': fator de conversão
 
-        self.gs = SynchronousGenerator(1.0, 60.0, .12, 0.0)
+        self.gs = SynchronousGenerator(1.0, 60.0, 1.8, 0.0)
         self.Tturb = .0
-        self.Tturb0 = 30/377
+        self.Tturb0 = 0.01
 
 
         # para plots
@@ -149,12 +150,23 @@ class CustomAnim(Animation):
         # self.thread_fig1.start()
 
 
+    @property
+    def mouse_norm_coords(self):
+        return norm_coords(canvas=self.canvas, coords=(self.canvas.winfo_pointerx() - self.canvas.winfo_rootx(),
+                                                       self.canvas.winfo_pointery() - self.canvas.winfo_rooty()))
 
 
     def create_fig0(self):
-        marker_size = 8
+
         ax = self.widgets['figs'][0].axes[0]
-        ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=1)
+        axt = ax.twinx()
+        self.widgets['figs'][0].axes.append(axt)
+
+        marker_size = 8
+
+        ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=0.8)
+        self.plt_lines['fig0_hline'] = ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=0.8)
+        self.plt_lines['fig0t_hline'] = axt.axhline(np.nan, linestyle='--', color=cl['t'], linewidth=0.8)
 
 
         self.plt_t.extend(np.linspace(-0.04, 0.00, self.ax_npt_fig0))
@@ -163,14 +175,12 @@ class CustomAnim(Animation):
         ax.set_ylim(-1.2, 1.2)
         ax.set_xticks([])
 
-        self.plt_lines = {}
         for i, ph in enumerate('abc'):
             self.plt_lines[ph] = (ax.plot(self.plt_t, self.plt_y[i], color=cl[ph], lw=2))[0]
             self.plt_lines[ph+'_marker'] = (ax.plot((0.0,), (0.0,), color=cl[ph], marker='o', markersize=marker_size))[0]
 
 
-        axt = ax.twinx()
-        self.widgets['figs'][0].axes.append(axt)
+
         self.plt_lines['twinx'] = (axt.plot(self.plt_t, self.plt_y[i], color=cl['c'], lw=2))[0]
         self.plt_lines['twinx_marker'] = (axt.plot((0.0,), (float('nan'),), color=cl['c'], marker='o', markersize=marker_size))[0]
 
@@ -180,12 +190,12 @@ class CustomAnim(Animation):
         nmax = 3800
 
         ax = self.widgets['figs'][1].axes[0]
-        ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=1)
-        ax.axvline(0, linestyle='--', color=cl['grid'], linewidth=1)
+        ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=0.8)
+        ax.axvline(0, linestyle='--', color=cl['grid'], linewidth=0.8)
 
 
-        self.plt_lines['Tturb'] = ax.axhline(0, linestyle='-.', color=cl['Tturb'], lw=cursor_lw)
-        self.plt_lines['delta'] = ax.axvline(0, linestyle='-.', color=cl['delta'], lw=cursor_lw)
+        self.plt_lines['Tturb'] = ax.axhline(0, linestyle='-', color=cl['Tturb'], lw=cursor_lw)
+        self.plt_lines['delta'] = ax.axvline(0, linestyle='--', color=cl['t'], lw=cursor_lw)
         self.plt_lines['Tind'] = (ax.plot(0, 0, color=cl['Tind'], lw=2))[0]
         self.plt_lines['Ix'] = (ax.plot(0, 0, color=cl['I1'], lw=2))[0]
         # self.plt_lines['Pturb_marker'] = (ax.plot(0, 0, color=cl['Tres'], marker='o', markersize=marker_size, lw=2))[0]
@@ -201,7 +211,7 @@ class CustomAnim(Animation):
         nmax = 3800
 
         ax = self.widgets['figs'][1].axes[1]
-        ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=1)
+        ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=0.8)
 
         npt = 100
         Slim = 1.1
@@ -218,13 +228,13 @@ class CustomAnim(Animation):
         width = 1.2
         linestyle = '-.'
 
-        ax.axvline(0, linestyle=linestyle, color=cl['grid'], linewidth=width)
-        ax.axvline(Pmax, linestyle=linestyle, color=cl['grid'], linewidth=width)
+        ax.axvline(0, linestyle=linestyle, color=cl['a'], linewidth=width)
+        ax.axvline(Pmax, linestyle=linestyle, color=cl['a'], linewidth=width)
         self.plt_lines['Slim'] = (ax.plot(slim.real, slim.imag, color=cl['s'], lw=width, linestyle=linestyle))[0]
         self.plt_lines['Fmin'] = (ax.plot(sfmin.real, sfmin.imag, color=cl['r'], lw=width, linestyle=linestyle))[0]
         self.plt_lines['Fmax'] = (ax.plot(sfmax.real, sfmax.imag, color=cl['r'], lw=width, linestyle=linestyle))[0]
         self.plt_lines['PQ_marker'] = (ax.plot(0,0, color=cl['Tind'], marker='o', markersize=marker_size, lw=2))[0]
-        ax.set_xlim(-0.2, 1.2)
+        ax.set_xlim(-0.2, 1.4)
         ax.set_xticks(np.linspace(0,1,3))
         ax.set_ylim(-1.2, 1.2)
         ax.set_yticks(np.linspace(-1,1,5))
@@ -257,10 +267,11 @@ class CustomAnim(Animation):
         V_abc = tuple(abs(sim['V']) * sin(th_e + phase(sim['V']) - i * alpha) for i in range(3))
         I_abc = tuple(abs(sim['I']) * sin(th_e + phase(sim['I']) - i * alpha) for i in range(3))
         If = 1.0
+        VE_lr = (np.nan, abs(sim['V']) * sin(th_e), abs(sim['E']) * sin(th_e-self.delta))
 
         # print(V_abc)
 
-        sim = sim | {'V_abc': V_abc, 'E_abc': E_abc, 'I_abc': I_abc, 'If': If}
+        sim = sim | {'V_abc': V_abc, 'E_abc': E_abc, 'I_abc': I_abc, 'If': If, 'VE_lr': VE_lr}
 
 
         if redraw_plt and self.run:
@@ -414,8 +425,8 @@ class CustomAnim(Animation):
 
     def update_fields(self, sim):
 
-        width_factor = 5
-        scale_factor = 0.5
+        width_factor = 8
+        scale_factor = 1.2
 
         for i, ph in enumerate('abc'):
             self.prims['stator']['field']['vec'][ph].scale(sim['I_abc'][i] * scale_factor)
@@ -475,6 +486,8 @@ class CustomAnim(Animation):
             axt.set_ylim(-30, 110)
             axt.set_ylabel('delta [°]', color=cl['t'])
             axt.tick_params(axis='y', labelcolor=cl['t'])
+            self.plt_lines['fig0_hline'].set_ydata((60.0,))
+            self.plt_lines['fig0t_hline'].set_ydata((0.0,))
         else:
             Y_show = sim[self.sel_fig0.key]
             y_max = self.sel_fig0.value
@@ -483,6 +496,8 @@ class CustomAnim(Animation):
             axt.set_ylim(-y_max, y_max)
             axt.set_ylabel('', color='white')
             axt.tick_params(axis='y', labelcolor='white')
+            self.plt_lines['fig0_hline'].set_ydata((np.nan,))
+            self.plt_lines['fig0t_hline'].set_ydata((np.nan,))
 
         self.plt_t.append(self.t)
         self.plt_yy.append(0)
@@ -498,6 +513,11 @@ class CustomAnim(Animation):
                 self.plt_lines['twinx_marker'].set_xdata((self.plt_t[-1],))
                 self.plt_lines['twinx'].set_color(cl['t'])
                 self.plt_lines['twinx_marker'].set_color(cl['t'])
+            else:
+                self.plt_lines['twinx'].set_ydata((np.nan,))
+                self.plt_lines['twinx'].set_xdata((0,))
+                self.plt_lines['twinx_marker'].set_ydata((np.nan,))
+                self.plt_lines['twinx_marker'].set_xdata((0,))
 
 
             key = 'abc'[i]
@@ -623,7 +643,7 @@ class CustomAnim(Animation):
 
         nans = np.empty(self.ax_npt_fig0, float)
         nans.fill(np.nan)
-        for arr in (self.plt_y):
+        for arr in (*self.plt_y, self.plt_yy):
             arr.extend(nans)
 
         self.plt_yy.extend(nans)
@@ -747,14 +767,30 @@ class CustomAnim(Animation):
 
 
         def change_part_visibility():
-
-            x, y = norm_coords(canvas=self.canvas, coords=(self.canvas.winfo_pointerx() - self.canvas.winfo_rootx(),
-                                                           self.canvas.winfo_pointery() - self.canvas.winfo_rooty()))
+            x, y = self.mouse_norm_coords
 
             if collision_circle_point(self.prims['rotor']['core']['outer'][0], (x, y)):
                 self.prims['rotor'].toggle_visible()
             elif collision_circle_point(self.prims['stator']['core']['outer'][0], (x, y)):
                 self.prims['stator'].toggle_visible()
+            else:
+                return
+
+
+        def field_menu(event, selection):
+            menu = tk.Menu(self.canvas.window, tearoff=0)
+            for it in selection:
+                menu.add_command(label=it, command=partial(selection.set_current_key, it))
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
+
+
+
+
+
+
 
         def freeze():
             self.freeze = not self.freeze
@@ -816,9 +852,13 @@ class CustomAnim(Animation):
         # self.canvas.window.bind('d', lambda event: self.destroy())
         # self.canvas.window.bind('c', lambda event: self.create())
         self.widgets['canvas_fig0'].get_tk_widget().bind('<Button-1>', lambda event: {next(self.sel_fig0), self.invalidate_fig0_data()})
+        self.widgets['canvas_fig0'].get_tk_widget().bind('<Button-3>', lambda event: {self.invalidate_fig0_data(), field_menu(event, self.sel_fig0)})
+
         self.widgets['canvas_fig1'].get_tk_widget().bind('<Button-1>', lambda event: next(self.sel_fig1))
+        self.widgets['canvas_fig1'].get_tk_widget().bind('<Button-3>', lambda event: field_menu(event, self.sel_fig1))
         # self.canvas.bind('<Button-3>', lambda event: {next(self.select_part),self.prims.print_tree(print_leafs=False)})
         self.canvas.bind('<Button-1>', lambda event: change_part_visibility())
+        self.canvas.bind('<Button-3>', lambda event: field_menu(event, self.sel_stator_field))
 
         self.canvas.window.bind('T',  lambda event: {print(f'\n\n{'-' * 135}'), self.prims.print_tree()})
         self.canvas.window.bind('t',  lambda event: {print(f'\n\n{'-'*135}'), self.prims.print_tree(False)})
