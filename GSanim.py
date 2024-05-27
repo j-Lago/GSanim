@@ -1,5 +1,7 @@
 import tkinter as tk
 from cmath import polar, rect, phase
+
+import matplotlib.pyplot as plt
 import numpy as np
 from tkinter import messagebox
 from math import sin, cos, pi, atan2, sqrt, fabs
@@ -37,6 +39,7 @@ def plot_thread(event_redraw: Event, figs):
 #         fig.canvas.draw()
 #         event_redraw.clear()
 
+
 class CustomAnim(Animation):
     def __init__(self, canvas: NormCanvas, widgets: dict = None):
         super().__init__(canvas, frame_delay=0)
@@ -48,6 +51,9 @@ class CustomAnim(Animation):
         self._f_rot_inc = None
         self._f_grid_inc = None
 
+        self.B_liq = None
+        self.B_arm = None
+        self.B_field = None
         self.v_grid = None
         self.i_field = None
         self.f_grid = None
@@ -120,8 +126,9 @@ class CustomAnim(Animation):
         # plt.rcParams['font.family'] = 'sans-serif'
         # plt.rcParams['font.sans-serif'] = 'corbel'
 
-        self.plot_fig0()
-        self.plot_fig1()
+        self.create_fig0()
+        self.create_fig1()
+        self.create_fig2()
 
         self.prims = PrimitivesGroup('root', [])
         self.create_primis()
@@ -144,7 +151,7 @@ class CustomAnim(Animation):
 
 
 
-    def plot_fig0(self):
+    def create_fig0(self):
         marker_size = 8
         ax = self.widgets['figs'][0].axes[0]
         ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=1)
@@ -167,7 +174,7 @@ class CustomAnim(Animation):
         self.plt_lines['twinx'] = (axt.plot(self.plt_t, self.plt_y[i], color=cl['c'], lw=2))[0]
         self.plt_lines['twinx_marker'] = (axt.plot((0.0,), (float('nan'),), color=cl['c'], marker='o', markersize=marker_size))[0]
 
-    def plot_fig1(self):
+    def create_fig1(self):
         marker_size = 8
         cursor_lw = 1.5
         nmax = 3800
@@ -185,6 +192,47 @@ class CustomAnim(Animation):
         self.plt_lines['Pout_marker'] = (ax.plot(0,0, color=cl['Tind'], marker='o', markersize=marker_size, lw=2))[0]
         ax.set_xlim(-pi*0.1, pi*1.1)
         ax.set_ylim(self.sel_fig1.value[0], self.sel_fig1.value[1])
+        ax.set_ylabel('P')
+        ax.set_xlabel(r'$\delta$')
+
+    def create_fig2(self):
+        marker_size = 8
+        cursor_lw = 1.5
+        nmax = 3800
+
+        ax = self.widgets['figs'][1].axes[1]
+        ax.axhline(0, linestyle='--', color=cl['grid'], linewidth=1)
+
+        npt = 100
+        Slim = 1.1
+        F0 = -1.4
+        Fmin = 0.6
+        Fmax = 2.2
+        Pmax = 1.0
+
+
+        ths = np.linspace(-pi/2, pi/2, npt)
+        slim = np.array(list(rect(Slim, th) for th in ths))
+        sfmin = np.array(list(rect(Fmin, th) + complex(0, F0) for th in ths))
+        sfmax = np.array(list(rect(Fmax, th) + complex(0, F0) for th in ths))
+        width = 1.2
+        linestyle = '-.'
+
+        ax.axvline(0, linestyle=linestyle, color=cl['grid'], linewidth=width)
+        ax.axvline(Pmax, linestyle=linestyle, color=cl['grid'], linewidth=width)
+        self.plt_lines['Slim'] = (ax.plot(slim.real, slim.imag, color=cl['s'], lw=width, linestyle=linestyle))[0]
+        self.plt_lines['Fmin'] = (ax.plot(sfmin.real, sfmin.imag, color=cl['r'], lw=width, linestyle=linestyle))[0]
+        self.plt_lines['Fmax'] = (ax.plot(sfmax.real, sfmax.imag, color=cl['r'], lw=width, linestyle=linestyle))[0]
+        self.plt_lines['PQ_marker'] = (ax.plot(0,0, color=cl['Tind'], marker='o', markersize=marker_size, lw=2))[0]
+        ax.set_xlim(-0.2, 1.2)
+        ax.set_xticks(np.linspace(0,1,3))
+        ax.set_ylim(-1.2, 1.2)
+        ax.set_yticks(np.linspace(-1,1,5))
+
+        ax.set_aspect('equal')
+        ax.set_ylabel('Q')
+        ax.set_xlabel('P')
+        # self.widgets['figs'][1].tight_layout()
 
 
     def refresh(self, _, dt, frame_count):
@@ -201,6 +249,7 @@ class CustomAnim(Animation):
 
         if redraw_plt:
             self.update_fig1(sim)
+            self.update_fig2(sim)
 
         alpha = 2 * pi / 3
         th_e = self.th_rot - self.th_ref
@@ -254,10 +303,10 @@ class CustomAnim(Animation):
                 th_ref_inc = -self.th_ref
             case 'rotor':
                 self._f_ref_inc -= self.f_rot
-                th_ref_inc = -self.th_rot
+                th_ref_inc = - phase(self.B_field)- self.th_ref
             case 'field':
                 self._f_ref_inc -= self.f_grid
-                th_ref_inc = -self.th_grid
+                th_ref_inc = - phase(self.B_liq)- self.th_ref
             case _:
                 raise ValueError('assert')
         self.process_incs()
@@ -365,32 +414,39 @@ class CustomAnim(Animation):
 
     def update_fields(self, sim):
 
-        stator_width_factor = 5
-        rotor_width_factor = 5
+        width_factor = 5
+        scale_factor = 0.5
 
         for i, ph in enumerate('abc'):
-            self.prims['stator']['field']['vec'][ph].scale(sim['I_abc'][i])
-            self.prims['stator']['field']['lines'][ph].width = abs(sim['I_abc'][i]) * stator_width_factor
+            self.prims['stator']['field']['vec'][ph].scale(sim['I_abc'][i] * scale_factor)
+            self.prims['stator']['field']['lines'][ph].width = abs(sim['I_abc'][i]) * width_factor
             if sim['I_abc'][i] < 0.0:
                 self.prims['stator']['field']['lines'][ph].rotate(pi)
 
-        res_s = self.prims['stator']['field']['vec']['a'][0].to_complex() + self.prims['stator']['field']['vec']['b'][0].to_complex() + self.prims['stator']['field']['vec']['c'][0].to_complex()
-        self.prims['stator']['field']['vec']['s'][0].from_complex(res_s)
-        self.prims['stator']['field']['lines']['s'].width = abs(res_s) * stator_width_factor
-        self.prims['stator']['field']['lines']['s'].rotate(pi + phase(res_s))
+        # B_arm = self.prims['stator']['field']['vec']['a'][0].to_complex() + self.prims['stator']['field']['vec']['b'][0].to_complex() + self.prims['stator']['field']['vec']['c'][0].to_complex()
+        beta = 2*pi/3
+        self.B_arm = complex(0, 0)
+        for k in range(3): self.B_arm += rect(sim['I_abc'][k], k*beta)
+        self.prims['stator']['field']['vec']['s'].scale(abs(self.B_arm) * scale_factor)
+        self.prims['stator']['field']['vec']['s'].rotate(phase(self.B_arm))
+        self.prims['stator']['field']['lines']['s'].width = abs(self.B_arm) * width_factor
+        self.prims['stator']['field']['lines']['s'].rotate(pi + phase(self.B_arm))
 
-        liq = complex(0, 0)
-        for i in range(3):
-            liq += rect(sim['I_abc'][i], i*2*pi/3)
-        liq += rect((self.f_grid-self.f_ref)/60, self.th_grid-self.th_ref)
+        self.B_field = rect(self.i_field, self.th_rot - self.th_ref)
 
-        self.prims['stator']['field']['vec']['l'][0].scale(abs(0))
-        self.prims['stator']['field']['lines']['l'].width = abs(liq) * stator_width_factor
-        self.prims['stator']['field']['lines']['l'].rotate(self.delta + self.th_rot)
+        self.B_liq = complex(0, 0)
+        self.B_liq += self.B_field + self.B_arm
+
+        self.prims['stator']['field']['vec']['l'][0].scale(abs(self.B_liq) * scale_factor)
+        self.prims['stator']['field']['vec']['l'].rotate(phase(self.B_liq))
+        self.prims['stator']['field']['lines']['l'].width = abs(self.B_liq) * width_factor
+        self.prims['stator']['field']['lines']['l'].rotate(phase(self.B_liq))
 
 
-        Ir = abs(sim['If'])
-        self.prims['rotor']['field']['lines']['r'].width = abs(Ir) * rotor_width_factor
+        self.prims['rotor']['field']['vec']['r'].scale(abs(self.B_field) * scale_factor)
+        # self.prims['rotor']['field']['vec']['r'].rotate(phase(self.B_field))
+        self.prims['rotor']['field']['lines']['r'].width = abs(self.B_field) * width_factor
+        # self.prims['rotor']['field']['lines']['r'].rotate(phase(self.B_field))
 
 
 
@@ -417,14 +473,16 @@ class CustomAnim(Animation):
             ax.set_ylim(self.sel_fig0.value[0], self.sel_fig0.value[1])
             ax.set_ylabel('f_grid, f_rot [Hz]')
             axt.set_ylim(-30, 110)
-            axt.set_ylabel('delta [°]')
+            axt.set_ylabel('delta [°]', color=cl['t'])
+            axt.tick_params(axis='y', labelcolor=cl['t'])
         else:
             Y_show = sim[self.sel_fig0.key]
             y_max = self.sel_fig0.value
             ax.set_ylim(-y_max, y_max)
             ax.set_ylabel(self.sel_fig0.key)
             axt.set_ylim(-y_max, y_max)
-            axt.set_ylabel('')
+            axt.set_ylabel('', color='white')
+            axt.tick_params(axis='y', labelcolor='white')
 
         self.plt_t.append(self.t)
         self.plt_yy.append(0)
@@ -484,6 +542,11 @@ class CustomAnim(Animation):
         # ax.set_xlim(min(nrs), max(nrs))
         ax.set_ylabel(self.sel_fig1.key + ((', ' + self.sel_fig1.key) if self.sel_fig1.key != 'nan' else ''))
 
+    def update_fig2(self, sim):
+        ax = self.widgets['figs'][1].axes[1]
+
+        self.plt_lines['PQ_marker'].set_xdata((sim['Sout'].real * self.sel_Pout_unit.value,))
+        self.plt_lines['PQ_marker'].set_ydata((sim['Sout'].imag * self.sel_Pout_unit.value,))
 
 
 
@@ -536,6 +599,9 @@ class CustomAnim(Animation):
         self.f_rot = 60.0
         self.f_ref = 0.0
         self.f_grid = 60.0
+        self.B_liq = complex(0.0, 0.0)
+        self.B_arm = complex(0.0, 0.0)
+        self.B_field = complex(0.0, 0.0)
         self.v_grid = 1.0
         self.i_field = 1.0
         self._f_ref_inc = 0.0
@@ -716,10 +782,10 @@ class CustomAnim(Animation):
         self.canvas.window.bind('<Shift-Right>', lambda event: inc_value('fg', 10*0.25, -f_max, f_max))
         self.canvas.window.bind('<Shift-Left>', lambda event: inc_value('fg', -10*0.25, -f_max, f_max))
 
-        self.canvas.window.bind('<0>', lambda event: inc_value('e', 0.01, 0.5, 1.5))
-        self.canvas.window.bind('<9>', lambda event: inc_value('e', -0.01, 0.5, 1.5))
-        self.canvas.window.bind('=', lambda event: inc_value('v', 0.01, 0.5, 1.5))
-        self.canvas.window.bind('-', lambda event: inc_value('v', -0.01, 0.5, 1.5))
+        self.canvas.window.bind('0', lambda event: inc_value('e', increment= 0.01, v_min=0.2, v_max=1.8))
+        self.canvas.window.bind('9', lambda event: inc_value('e', increment=-0.01, v_min=0.2, v_max=1.8))
+        self.canvas.window.bind('=', lambda event: inc_value('v', increment= 0.01, v_min=0.2, v_max=1.8))
+        self.canvas.window.bind('-', lambda event: inc_value('v', increment=-0.01, v_min=0.2, v_max=1.8))
 
         self.canvas.window.bind('<Up>', lambda event: inc_value('Tturb', self.Tturb0/50, -self.Tturb0, self.Tturb0))
         self.canvas.window.bind('<Down>', lambda event: inc_value('Tturb', -self.Tturb0/50, -self.Tturb0, self.Tturb0))
