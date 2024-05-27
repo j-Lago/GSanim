@@ -3,6 +3,7 @@ contrast_color_scale = 0.7
 
 fonts = {
         'default': ('JetBrains Mono Medium', 12),
+        'binds': ('JetBrains Mono Medium', 8),
         'fps': ('JetBrains Mono Medium', 14),
     }
 
@@ -35,6 +36,7 @@ cl = {'bg': '#ffffff',
       'wr_cursor': '#777777',
       'grid': '#3d3d3d',
       'default_font': '#1C2833',
+      'bind_font': '#849974',
       'delta': '#9B59B6',
       'Tturb': '#CB4335',
       }

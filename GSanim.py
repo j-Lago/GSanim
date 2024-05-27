@@ -84,7 +84,7 @@ class CustomAnim(Animation):
         self.dc_filter_buffer = deque(maxlen=100)
         self.plot_downsample_factor = 3
 
-        self.sel_reference_frame = tk.StringVar(value='stator')
+        self.sel_reference_frame = tk.StringVar(value='free')
         self.sel_dynamic_color = CircularDict({'3phase': False, 'amplitude': True})
 
         self.sel_stator_field = CircularDict({'abc': 0, 'abcs': 1, 'a': 2, 'b': 3, 'c': 4, 's': 5, 'l': 6, 'sl': 7})
@@ -716,10 +716,10 @@ class CustomAnim(Animation):
         self.canvas.window.bind('<Shift-Right>', lambda event: inc_value('fg', 10*0.25, -f_max, f_max))
         self.canvas.window.bind('<Shift-Left>', lambda event: inc_value('fg', -10*0.25, -f_max, f_max))
 
-        self.canvas.window.bind('<0>', lambda event: inc_value('e', 0.05, 0.5, 1.5))
-        self.canvas.window.bind('<9>', lambda event: inc_value('e', -0.05, 0.5, 1.5))
-        self.canvas.window.bind('=', lambda event: inc_value('v', 0.05, 0.5, 1.5))
-        self.canvas.window.bind('-', lambda event: inc_value('v', -0.05, 0.5, 1.5))
+        self.canvas.window.bind('<0>', lambda event: inc_value('e', 0.01, 0.5, 1.5))
+        self.canvas.window.bind('<9>', lambda event: inc_value('e', -0.01, 0.5, 1.5))
+        self.canvas.window.bind('=', lambda event: inc_value('v', 0.01, 0.5, 1.5))
+        self.canvas.window.bind('-', lambda event: inc_value('v', -0.01, 0.5, 1.5))
 
         self.canvas.window.bind('<Up>', lambda event: inc_value('Tturb', self.Tturb0/50, -self.Tturb0, self.Tturb0))
         self.canvas.window.bind('<Down>', lambda event: inc_value('Tturb', -self.Tturb0/50, -self.Tturb0, self.Tturb0))

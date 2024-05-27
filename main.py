@@ -96,17 +96,30 @@ def main():
 
     default_instruments = copy(default)
     default_instruments['bg'] = '#c8fcd4'
+    default_binds = copy(default)
+    # default_binds = {'font': fonts['binds'], 'fg': cl['bind_font']}
+    default_binds['bg'] = '#c8fcd4'
+    default_binds['fg'] = cl['bind_font']
+    default_binds['font'] = fonts['binds']
     row0, col0 = 4, 6
     canvas = NormCanvas(root, bg=cl['bg'], height=HEIGHT, width=WIDTH, highlightbackground=cl['bg'])
     canvas.grid(row=0, column=col0, columnspan=7, rowspan=8)
 
-    Label(root, text='stator pg', **default_instruments).grid(row=row0 + 1, column=col0+0, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='rotor ,.',  **default_instruments).grid(row=row0 + 1, column=col0+1, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='grid ←→',   **default_instruments).grid(row=row0 + 1, column=col0+2, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='stator', **default_instruments).grid(row=row0 + 1, column=col0+0, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='rotor',  **default_instruments).grid(row=row0 + 1, column=col0+1, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='grid',   **default_instruments).grid(row=row0 + 1, column=col0+2, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='delta',   **default_instruments).grid(row=row0 + 1, column=col0+3, stick=W+E+N+S, padx=1, pady=1)
     Label(root, text='Pout',  **default_instruments).grid(row=row0 + 1, column=col0+4, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='V -=',   **default_instruments).grid(row=row0 + 1, column=col0+5, stick=W+E+N+S, padx=1, pady=1)
-    Label(root, text='E 09',      **default_instruments).grid(row=row0 + 1, column=col0 + 6, stick=W + E + N + S, padx=1, pady=1)
+    Label(root, text='V',   **default_instruments).grid(row=row0 + 1, column=col0+5, stick=W+E+N+S, padx=1, pady=1)
+    Label(root, text='E',      **default_instruments).grid(row=row0 + 1, column=col0 + 6, stick=W + E + N + S, padx=1, pady=1)
+
+    Label(root, text='pg', **default_binds).grid(row=row0 + 1, column=col0 + 0, stick= E + S, padx=1, pady=1)
+    Label(root, text=',.', **default_binds).grid(row=row0 + 1, column=col0 + 1, stick=E + S, padx=1, pady=1)
+    Label(root, text='←→', **default_binds).grid(row=row0 + 1, column=col0 + 2, stick=E + S, padx=1, pady=1)
+    Label(root, text='', **default_binds).grid(row=row0 + 1, column=col0 + 3, stick=E + S, padx=1, pady=1)
+    Label(root, text='', **default_binds).grid(row=row0 + 1, column=col0 + 4, stick=E + S, padx=1, pady=1)
+    Label(root, text='-=', **default_binds).grid(row=row0 + 1, column=col0 + 5, stick=E + S, padx=1, pady=1)
+    Label(root, text='09', **default_binds).grid(row=row0 + 1, column=col0 + 6, stick=E + S, padx=1, pady=1)
 
     widgets['w_stator_um'] = Label(root, text='[rad/s]', **default_instruments)
     widgets['w_rotor_um']  = Label(root, text='[rpm]'  , **default_instruments)
