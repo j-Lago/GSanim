@@ -70,7 +70,6 @@ class CustomAnim(Animation):
         self.reset_time()
 
         self.inertia = 0.0002
-        self.dump = 40
 
         self.run = True
         self._previous_run = True
@@ -99,6 +98,9 @@ class CustomAnim(Animation):
 
         self.sel_rotor_field = CircularDict({'r': 0})
         self.sel_rotor_field.key = 'r'
+
+        self.dumping = CircularDict({'high': 40, 'normal': 20, 'low': 5, 'off': 0})
+        self.dumping.name = 'damping factor'
 
         self.sel_fig1 = CircularDict({'': (-0.5, 3.5)})  #  'atributo': ylim
         self.sel_fig0 = CircularDict({'V_abc': 1.2,
@@ -210,6 +212,7 @@ class CustomAnim(Animation):
         ax.set_xlabel(r'$\delta$')
 
     def create_fig2(self):
+        # todo: criar curva de capabilidade com base no modelo
         marker_size = 8
         cursor_lw = 1.5
         nmax = 3800
@@ -256,7 +259,7 @@ class CustomAnim(Animation):
         self.update_fps_info(dt)
         redraw_plt = frame_count % self.plot_downsample_factor == 0
 
-        if self.run:
+        if self.run and self._previous_run:
             dt /= self.time_factor     # time scaled dt for animation
         else:
             dt = 0.0
@@ -341,8 +344,9 @@ class CustomAnim(Animation):
     def process_inertia(self, dt, sim):
         if self.en_sim_inertia:
             DT = (self.Tturb - sim['Te'])
-            self.f_rot += DT * 377/self.inertia * dt - (self.f_rot-self.f_grid)*2*pi* self.dump * dt
+            self.f_rot += DT * 377/self.inertia * dt - (self.f_rot-self.f_grid)*2*pi* self.dumping.value * dt
             self._f_rot_inc = 0.0
+            # print(self.dumping.key, self.dumping.value)
         else:
             self.f_rot += self._f_rot_inc
 
@@ -802,16 +806,20 @@ class CustomAnim(Animation):
 
 
         def field_menu(event, selection):
+
+            self.run = False
+            self._previous_run = False
             menu = tk.Menu(self.canvas.window, tearoff=0)
+            if selection.name is not None:
+                menu.add_command(label=selection.name, state='disabled', compound='center')
+                menu.add_separator()
             for it in selection:
                 menu.add_command(label=it, command=partial(selection.set_current_key, it))
             # if isinstance(selection.value, PlotLimits):
             #     menu.add_separator()
             #     menu.add_command(label='y autoscale', command=partial(toggle_autoscale, selection, 'y'))
-            try:
-                menu.tk_popup(event.x_root, event.y_root)
-            finally:
-                menu.grab_release()
+            menu.tk_popup(event.x_root, event.y_root)
+            self.run = True
 
 
 
@@ -819,7 +827,10 @@ class CustomAnim(Animation):
 
 
 
-        def freeze():
+
+
+
+        def toggle_freeze():
             self.freeze = not self.freeze
             if not self.freeze:
                 self.run = True
@@ -867,7 +878,7 @@ class CustomAnim(Animation):
         self.canvas.window.bind('<space>', lambda event: toggle_run())
         # self.canvas.window.bind('<Return>', lambda event: toggle_sim())
         self.canvas.window.bind('<F1>', lambda event: show_binds())
-        self.canvas.window.bind('<F4>', lambda event: freeze())
+        self.canvas.window.bind('<F4>', lambda event: toggle_freeze())
         self.canvas.window.bind('<F5>', lambda event: reload())
         self.canvas.window.bind('<Escape>', lambda event: self.reset_time(reset_and_stop=True))
         self.canvas.window.bind('<End>',     lambda event: self.reset_time())
@@ -880,9 +891,10 @@ class CustomAnim(Animation):
         # self.canvas.window.bind('c', lambda event: self.create())
         self.widgets['canvas_fig0'].get_tk_widget().bind('<Button-1>', lambda event: {next(self.sel_fig0), self.invalidate_fig0_data()})
         self.widgets['canvas_fig0'].get_tk_widget().bind('<Button-3>', lambda event: {self.invalidate_fig0_data(), field_menu(event, self.sel_fig0)})
+        self.widgets['sim_inertia'].bind('<Button-3>', lambda event: {field_menu(event, self.dumping)})
 
         self.widgets['canvas_fig1'].get_tk_widget().bind('<Button-1>', lambda event: next(self.sel_fig1))
-        self.widgets['canvas_fig1'].get_tk_widget().bind('<Button-3>', lambda event: field_menu(event, self.sel_fig1))
+        self.widgets['canvas_fig1'].get_tk_widget().bind('<Button-3>', lambda event: {field_menu(event, self.dumping)})
         # self.canvas.bind('<Button-3>', lambda event: {next(self.select_part),self.prims.print_tree(print_leafs=False)})
         self.canvas.bind('<Button-1>', lambda event: change_part_visibility())
         self.canvas.bind('<Button-3>', lambda event: field_menu(event, self.sel_stator_field))
@@ -915,3 +927,5 @@ class CustomAnim(Animation):
         self.widgets['ref_field'] .configure(variable=self.sel_reference_frame, value='field')
 
         # self.canvas.window.bind('<B1-Motion>', lambda event: drag_window())
+
+        # todo: lista em F1

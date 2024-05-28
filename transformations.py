@@ -147,10 +147,10 @@ def hex_to_rgb(hex: str) -> tuple[float, ...]:
 
 class CircularDict(dict):
     def __init__(self, *args):
-        dict()
         super().__init__(*args)
         keys = list(self.keys())
         self._current_key = keys[0]
+        self.name = None
 
     @property
     def key(self):
