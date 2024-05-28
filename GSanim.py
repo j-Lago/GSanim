@@ -11,7 +11,7 @@ from primitive import Primitive, PrimitivesGroup, collision_circle_point
 from transformations import norm_coords, denorm_coords, translate, rotate, scale, reverse, rgb_to_hex, hex_to_rgb, scale_hsl, set_hsl, clip, CircularDict, hex_bezier, scale_rgb, denorm_coords
 import time
 from assets import assets, cl, binds_message, contrast_color_scale
-from animation import Animation
+from animation import Animation, PlotLimits, AxisLimits
 from collections import deque
 from statistics import mean
 from typing import Literal
@@ -101,7 +101,11 @@ class CustomAnim(Animation):
         self.sel_rotor_field.key = 'r'
 
         self.sel_fig1 = CircularDict({'': (-0.5, 3.5)})  #  'atributo': ylim
-        self.sel_fig0 = CircularDict({'V_abc': 1.2, 'I_abc': 1.2, 'E_abc': 1.2, 'VE_lr': 1.2, 'f_grt': (30.0, 90.0)})  # 'atributo': ylim
+        self.sel_fig0 = CircularDict({'V_abc': 1.2,
+                                      'I_abc': 1.2,
+                                      'E_abc': 1.2,
+                                      'VE_lr': 1.2,
+                                      'f_grt': (30, 90)}) #,PlotLimits(ymin=30, ymax=90, twinx= PlotLimits(ymin=-30, ymax=110)) })  # 'atributo': ylim
 
         self.sel_stator_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3), '8': (8, 3)})  # versão do estator com n espiras por fase
         self.sel_rotor_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3)})  # versão do estator com n espiras por fase
@@ -215,9 +219,9 @@ class CustomAnim(Animation):
 
         npt = 100
         Slim = 1.1
-        F0 = -1.4
-        Fmin = 0.6
-        Fmax = 2.2
+        F0 = -self.gs.Xs
+        Fmin = 0.9
+        Fmax = 2.6
         Pmax = 1.0
 
 
@@ -234,6 +238,9 @@ class CustomAnim(Animation):
         self.plt_lines['Fmin'] = (ax.plot(sfmin.real, sfmin.imag, color=cl['r'], lw=width, linestyle=linestyle))[0]
         self.plt_lines['Fmax'] = (ax.plot(sfmax.real, sfmax.imag, color=cl['r'], lw=width, linestyle=linestyle))[0]
         self.plt_lines['PQ_marker'] = (ax.plot(0,0, color=cl['Tind'], marker='o', markersize=marker_size, lw=2))[0]
+
+
+
         ax.set_xlim(-0.2, 1.4)
         ax.set_xticks(np.linspace(0,1,3))
         ax.set_ylim(-1.2, 1.2)
@@ -271,7 +278,7 @@ class CustomAnim(Animation):
 
         # print(V_abc)
 
-        sim = sim | {'V_abc': V_abc, 'E_abc': E_abc, 'I_abc': I_abc, 'If': If, 'VE_lr': VE_lr}
+        sim = sim | {'V_abc': V_abc, 'E_abc': E_abc, 'I_abc': I_abc, 'If': If, 'VE_lr': VE_lr, 'test': VE_lr}
 
 
         if redraw_plt and self.run:
@@ -482,18 +489,28 @@ class CustomAnim(Animation):
         if freqs:
             Y_show = (self.f_grid - self.f_ref, self.f_rot - self.f_ref, float('nan'))
             ax.set_ylim(self.sel_fig0.value[0], self.sel_fig0.value[1])
+            axt.set_ylim(-20, 110)
+            # ax.set_ylim(self.sel_fig0.value.y.min, self.sel_fig0.value.y.max)
+            # axt.set_ylim(self.sel_fig0.value.twinx.y.min, self.sel_fig0.value.twinx.y.max)
             ax.set_ylabel('f_grid, f_rot [Hz]')
-            axt.set_ylim(-30, 110)
             axt.set_ylabel('delta [°]', color=cl['t'])
             axt.tick_params(axis='y', labelcolor=cl['t'])
             self.plt_lines['fig0_hline'].set_ydata((60.0,))
             self.plt_lines['fig0t_hline'].set_ydata((0.0,))
         else:
             Y_show = sim[self.sel_fig0.key]
+            # if isinstance(self.sel_fig0.value, PlotLimits):
+            #     ax.set_ylim(self.sel_fig0.value.y.min, self.sel_fig0.value.y.max)
+            #     axt.set_ylim(self.sel_fig0.value.y.min, self.sel_fig0.value.y.max)
+            # else:
+            #     y_max = self.sel_fig0.value
+            #     ax.set_ylim(-y_max, y_max)
+            #     axt.set_ylim(-y_max, y_max)
             y_max = self.sel_fig0.value
             ax.set_ylim(-y_max, y_max)
-            ax.set_ylabel(self.sel_fig0.key)
             axt.set_ylim(-y_max, y_max)
+
+            ax.set_ylabel(self.sel_fig0.key)
             axt.set_ylabel('', color='white')
             axt.tick_params(axis='y', labelcolor='white')
             self.plt_lines['fig0_hline'].set_ydata((np.nan,))
@@ -776,11 +793,21 @@ class CustomAnim(Animation):
             else:
                 return
 
+        def toggle_autoscale(selection, axis):
+            if axis in ('x', 'both'):
+                selection.value.x.autoscale = not selection.value.x.autoscale
+            if axis in ('y', 'both'):
+                selection.value.y.autoscale = not selection.value.y.autoscale
+            print(selection.value.y.autoscale)
+
 
         def field_menu(event, selection):
             menu = tk.Menu(self.canvas.window, tearoff=0)
             for it in selection:
                 menu.add_command(label=it, command=partial(selection.set_current_key, it))
+            # if isinstance(selection.value, PlotLimits):
+            #     menu.add_separator()
+            #     menu.add_command(label='y autoscale', command=partial(toggle_autoscale, selection, 'y'))
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:

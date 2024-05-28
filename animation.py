@@ -1,9 +1,38 @@
 import tkinter
 from abc import ABC, abstractmethod
+
+from typing import Self
+
 from NormCanvas import NormCanvas
 from time import time, sleep
 from primitive import Primitive
 from threading import Event
+
+class AxisLimits:
+    def __init__(self, lmin: float = None, lmax: float = None, autoscale: bool = False):
+        self.max = lmax
+        self.min = lmin
+
+        if lmin is None and lmax is not None:
+            self.min = -self.max
+
+        self.autoscale = not autoscale and (lmax is None or lmin is None)
+
+class PlotLimits:
+    def __init__(self,
+                 xmin: float = None,
+                 xmax: float = None,
+                 ymin: float = None,
+                 ymax: float = None,
+                 xautoscale: bool = False,
+                 yautoscale: bool = False,
+                 twinx: Self = None
+                 ):
+        self.x = AxisLimits(xmin, xmax, xautoscale)
+        self.y = AxisLimits(ymin, ymax, yautoscale)
+        self.twinx = twinx
+
+
 
 
 class Animation(ABC):
