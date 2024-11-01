@@ -99,15 +99,16 @@ class CustomAnim(Animation):
         self.sel_rotor_field = CircularDict({'r': 0})
         self.sel_rotor_field.key = 'r'
 
-        self.dumping = CircularDict({'high': 40, 'normal': 20, 'low': 5, 'off': 0})
+        self.dumping = CircularDict({'high': 60, 'normal': 30, 'low': 5, 'off': 0})
         self.dumping.name = 'damping factor'
 
         self.sel_fig1 = CircularDict({'': (-0.5, 3.5)})  #  'atributo': ylim
-        self.sel_fig0 = CircularDict({'V_abc': 1.2,
-                                      'I_abc': 1.2,
-                                      'E_abc': 1.2,
-                                      'VE_lr': 1.2,
-                                      'f_grt': (30, 90)}) #,PlotLimits(ymin=30, ymax=90, twinx= PlotLimits(ymin=-30, ymax=110)) })  # 'atributo': ylim
+        self.sel_fig0 = CircularDict({'V_abc': 1.5,
+                                      'I_abc': 1.5,
+                                      'E_abc': 1.5,
+                                      'VE_lr': 1.5,
+                                      'f_grt': (30, 90)
+                                      }) #,PlotLimits(ymin=30, ymax=90, twinx= PlotLimits(ymin=-30, ymax=110)) })  # 'atributo': ylim
 
         self.sel_stator_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3), '8': (8, 3)})  # versão do estator com n espiras por fase
         self.sel_rotor_turns = CircularDict({'simp': (2, 3), '4': (4, 3), '6': (6, 3)})  # versão do estator com n espiras por fase
@@ -272,16 +273,15 @@ class CustomAnim(Animation):
             self.update_fig2(sim)
 
         alpha = 2 * pi / 3
-        th_e = self.th_rot - self.th_ref
-        E_abc = tuple(abs(sim['E']) * sin(th_e - i * alpha) for i in range(3))
-        V_abc = tuple(abs(sim['V']) * sin(th_e + phase(sim['V']) - i * alpha) for i in range(3))
-        I_abc = tuple(abs(sim['I']) * sin(th_e + phase(sim['I']) - i * alpha) for i in range(3))
-        If = 1.0
-        VE_lr = (np.nan, abs(sim['V']) * sin(th_e), abs(sim['E']) * sin(th_e-self.delta))
+        th = self.th_grid - self.th_ref
+        V_abc = tuple(abs(sim['V']) * sin(th - i * alpha) for i in range(3))
+        E_abc = tuple(abs(sim['E']) * sin(th + phase(sim['E']) - i * alpha) for i in range(3))
+        I_abc = tuple(abs(sim['I']) * sin(th + phase(sim['I']) - i * alpha) for i in range(3))
+        VE_lr = (np.nan, abs(sim['V']) * sin(th), abs(sim['E']) * sin(th+self.delta))
 
         # print(V_abc)
 
-        sim = sim | {'V_abc': V_abc, 'E_abc': E_abc, 'I_abc': I_abc, 'If': If, 'VE_lr': VE_lr, 'test': VE_lr}
+        sim = sim | {'V_abc': V_abc, 'E_abc': E_abc, 'I_abc': I_abc, 'If': self.i_field, 'VE_lr': VE_lr, 'test': VE_lr}
 
 
         if redraw_plt and self.run:
@@ -449,20 +449,19 @@ class CustomAnim(Animation):
         beta = 2*pi/3
         self.B_arm = complex(0, 0)
         for k in range(3): self.B_arm += rect(sim['I_abc'][k], k*beta)
+        self.B_field = rect(self.i_field, self.th_rot - self.th_ref)
+        self.B_liq = rect(self.v_grid, self.th_grid - self.th_ref)
+
         self.prims['stator']['field']['vec']['s'].scale(abs(self.B_arm) * scale_factor)
         self.prims['stator']['field']['vec']['s'].rotate(phase(self.B_arm))
         self.prims['stator']['field']['lines']['s'].width = abs(self.B_arm) * width_factor
         self.prims['stator']['field']['lines']['s'].rotate(pi + phase(self.B_arm))
 
-        self.B_field = rect(self.i_field, self.th_rot - self.th_ref)
-
-        self.B_liq = complex(0, 0)
-        self.B_liq += self.B_field + self.B_arm
-
         self.prims['stator']['field']['vec']['l'][0].scale(abs(self.B_liq) * scale_factor)
         self.prims['stator']['field']['vec']['l'].rotate(phase(self.B_liq))
         self.prims['stator']['field']['lines']['l'].width = abs(self.B_liq) * width_factor
         self.prims['stator']['field']['lines']['l'].rotate(phase(self.B_liq))
+
 
 
         self.prims['rotor']['field']['vec']['r'].scale(abs(self.B_field) * scale_factor)
@@ -699,7 +698,6 @@ class CustomAnim(Animation):
             else:
                 self.en_sim_inertia = True
 
-
         def inc_value(var_name: Literal['v', 'fg', 'fs', 'fr', 'delay', 'time_factor', 'Tres'],
                       increment: int | float,
                       v_min: int | float,
@@ -725,10 +723,6 @@ class CustomAnim(Animation):
                     last = self.time_factor
                     self.time_factor = clip(self.time_factor + increment, v_min, v_max)
                     self.invalidate_fig0_data(last)
-
-
-
-
 
         def change_slots(parts: Literal['rotor', 'stator']):
             if isinstance(parts, str):
@@ -784,12 +778,8 @@ class CustomAnim(Animation):
                     node.fill = cl[ph]
                     node.stipple = self.sel_coil_opacity.key
 
-
-
-
         def change_part_visibility():
             x, y = self.mouse_norm_coords
-
             if collision_circle_point(self.prims['rotor']['core']['outer'][0], (x, y)):
                 self.prims['rotor'].toggle_visible()
             elif collision_circle_point(self.prims['stator']['core']['outer'][0], (x, y)):
@@ -806,12 +796,11 @@ class CustomAnim(Animation):
 
 
         def field_menu(event, selection):
-
             self.run = False
             self._previous_run = False
             menu = tk.Menu(self.canvas.window, tearoff=0)
             if selection.name is not None:
-                menu.add_command(label=selection.name, state='disabled', compound='center')
+                menu.add_command(label=selection.name, state='disabled')
                 menu.add_separator()
             for it in selection:
                 menu.add_command(label=it, command=partial(selection.set_current_key, it))
@@ -856,10 +845,14 @@ class CustomAnim(Animation):
         self.canvas.window.bind('<Shift-Right>', lambda event: inc_value('fg', 10*0.25, -f_max, f_max))
         self.canvas.window.bind('<Shift-Left>', lambda event: inc_value('fg', -10*0.25, -f_max, f_max))
 
-        self.canvas.window.bind('0', lambda event: inc_value('e', increment= 0.01, v_min=0.2, v_max=1.8))
-        self.canvas.window.bind('9', lambda event: inc_value('e', increment=-0.01, v_min=0.2, v_max=1.8))
-        self.canvas.window.bind('=', lambda event: inc_value('v', increment= 0.01, v_min=0.2, v_max=1.8))
-        self.canvas.window.bind('-', lambda event: inc_value('v', increment=-0.01, v_min=0.2, v_max=1.8))
+        self.canvas.window.bind('0', lambda event: inc_value('e', increment= 1/16, v_min=1/4, v_max=7/4))
+        self.canvas.window.bind('9', lambda event: inc_value('e', increment=-1/16, v_min=1/4, v_max=7/4))
+        self.canvas.window.bind(')', lambda event: inc_value('e', increment=1 / 4, v_min=1 / 4, v_max=7 / 4))
+        self.canvas.window.bind('(', lambda event: inc_value('e', increment=-1 / 4, v_min=1 / 4, v_max=7 / 4))
+        self.canvas.window.bind('=', lambda event: inc_value('v', increment= 1/16, v_min=1/4, v_max=7/4))
+        self.canvas.window.bind('-', lambda event: inc_value('v', increment=-1/16, v_min=1/4, v_max=7/4))
+        self.canvas.window.bind('+', lambda event: inc_value('v', increment=1/4, v_min=1/4, v_max=7/4))
+        self.canvas.window.bind('_', lambda event: inc_value('v', increment=-1/4, v_min=1/4, v_max=7/4))
 
         self.canvas.window.bind('<Up>', lambda event: inc_value('Tturb', self.Tturb0/50, -self.Tturb0, self.Tturb0))
         self.canvas.window.bind('<Down>', lambda event: inc_value('Tturb', -self.Tturb0/50, -self.Tturb0, self.Tturb0))
@@ -904,7 +897,7 @@ class CustomAnim(Animation):
         self.canvas.window.bind('d',  lambda event: reset_colors())
         self.canvas.window.bind('s', lambda event: next(self.sel_stator_field))
         self.canvas.window.bind('r', lambda event: next(self.sel_rotor_field))
-        self.canvas.window.bind('\\', lambda event: next(self.sel_mount))
+        self.canvas.window.bind('\\', lambda event: next(self.sel_mount))   # todo: implementar colisão com polígono e usar mouse
         # self.canvas.window.bind('k',  lambda event: next(self.select_ref))
 
 

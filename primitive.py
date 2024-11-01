@@ -24,7 +24,7 @@ def recursive_parent_visible(obj, parent_visibility, node_visibility=None):
 
 class Primitive:
     def __init__(self, canvas: NormCanvas,
-                 shape: Literal['line', 'polygon', 'rectangle', 'square', 'circle', 'oval', 'arc'],
+                 shape: Literal['line', 'polygon', 'rectangle', 'square', 'circle', 'oval', 'arc', 'text'],
                  coords: Coords,
                  transforms: tuple[FunctionType, tuple] | list[tuple[FunctionType, tuple]] | tuple[tuple[FunctionType, tuple]] | Any | None = None,
                  name='unnamed',
@@ -189,7 +189,6 @@ class Primitive:
         match self.shape:
             case 'line':
                 kwargs['fill'] = kwargs.pop('outline', kwargs.pop('fill', ''))
-                # print('line>> ', kwargs)
                 self._handle = self._canvas.create_line(self.denorm_coords(), **kwargs)
             case 'polygon':
                 self._handle = self._canvas.create_polygon(self.denorm_coords(), **kwargs)
@@ -199,6 +198,11 @@ class Primitive:
                 raise ValueError(f"'primitive_type' ({self.shape}) inválido")
             case 'circle':
                 self._handle = self._canvas.create_oval(self._denorm_coords_circle_to_oval(), **kwargs)
+            case 'text':
+                # kwargs['fill'] = kwargs.pop('outline', kwargs.pop('fill', ''))
+                kwargs.pop('outline')
+                kwargs['text'] = kwargs.pop('text', self.name)
+                self._handle = self._canvas.create_text(self.denorm_coords(), **kwargs)
             case 'arc':
                 raise ValueError(f"'primitive_type' ({self.shape}) inválido")
             case _:

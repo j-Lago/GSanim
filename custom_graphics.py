@@ -1,7 +1,7 @@
 from primitive import Primitive, PrimitivesGroup
-from assets import assets, cl, contrast_color_scale
+from assets import assets, cl, contrast_color_scale, fonts
 from transformations import translate, rotate, scale, reverse, rgb_to_hex, hex_to_rgb, scale_hsl, scale_rgb,set_hsl, clip, \
-    CircularDict
+    CircularDict, denorm_coords
 from math import pi
 from typing import Literal
 from collections.abc import Iterator, Iterable
@@ -80,13 +80,15 @@ def create_current(canvas, prims, coils_per_phase_s, coils_per_phase_r, phases =
 def create_fields(canvas: NormCanvas, prims: PrimitivesGroup):
     prims['stator']['field'] = []
     prims['stator']['field']['vec'] = []
-    for i, ph in enumerate('abcsl'):
+    for i, ph in enumerate('abcs'):
         prims['stator']['field']['vec'][ph] = GraphicVec2(0.4, 0.0, canvas, stroke=cl[ph], transforms=(rotate, 2 * pi / 3 * i if i < 3 else 0.0), name='field_vec_' + ph)
 
     prims['rotor']['field'] = []
     prims['rotor']['field']['vec'] = []
     for i, ph in enumerate('r'):
         prims['rotor']['field']['vec'][ph] = GraphicVec2(0.4, 0.0, canvas, stroke=cl[ph], transforms=(rotate, 0), name='field_vec_' + ph)
+
+    prims['stator']['field']['vec']['l'] = GraphicVec2(0.4, 0.0, canvas, stroke=cl['l'], name='field_vec_l')
 
     prims['stator']['field']['lines'] = []
     for i, ph in enumerate('abcsl'):
@@ -98,6 +100,18 @@ def create_fields(canvas: NormCanvas, prims: PrimitivesGroup):
     for i, ph in enumerate('r'):
         prims['rotor']['field']['lines'][ph] = create_flux_from_quarter(canvas, orientation=0, color=cl[ph])
         prims['rotor']['field']['lines'][ph].visible = False
+
+
+    prims['legend'] = []
+    prims['legend']['vec'] = []
+    prims['legend']['text'] = []
+    height = 0.07
+    names = ('  arm', 'field', '  net')
+    for k, ph in enumerate('srl'):
+        # prims['legend']['vec'][ph] = GraphicVec2(0.12, 0.0, canvas, stroke=cl[ph], transforms=(translate, (-0.82, 0.95 - 0.1*k)))
+        prims['legend']['vec'][ph] = Primitive(canvas, 'line', (0.0, 0.0, -0.07, 0.0), stroke=cl[ph], transforms=(translate, (0.98, 0.98 - height * k)))
+        prims['legend']['vec'][ph].width = 5
+        prims['legend']['text'][ph]  = Primitive(canvas,'text', (0.82, 0.98 - height*k), text=names[k], font=fonts['default'])
 
 
 
