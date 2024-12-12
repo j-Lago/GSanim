@@ -447,13 +447,13 @@ class PrimitivesGroup:
             CHECK = style.GREEN + '\u2714'
 
         node_sty = style.NODE if self.visible and self.parent_visible else style.iNODE
-        print(f'{'.  ' * level}' + node_sty + f'↳ {self.name}[{len(self.nodes)}] ({symbol.CHECK if self.parent_visible else symbol.CROSS}{symbol.CHECK if self.visible else symbol.CROSS}' + node_sty + f'):'  + f' at {hex(id(self))}' + style.RESET)
+        print(f"{'.  ' * level}' + node_sty + f'↳ {self.name}[{len(self.nodes)}] ({symbol.CHECK if self.parent_visible else symbol.CROSS}{symbol.CHECK if self.visible else symbol.CROSS}' + node_sty + f'):'  + f' at {hex(id(self))}" + style.RESET)
         for prim in self.nodes:
             if isinstance(prim, PrimitivesGroup):
                 prim.print_tree(print_leafs=print_leafs, level=level+1)
             elif print_leafs:
                 leaf_sty = style.LEAF if prim.visible else style.iLEAF
-                print(f'{'.  ' * (level + 1)}' + node_sty + '↳  f' + leaf_sty + f'{prim.name} ({symbol.CHECK if prim.visible else symbol.CROSS}' + leaf_sty + f'): {prim.shape}  ⇣{prim._handle}' + style.RESET)
+                print(f"{'.  ' * (level + 1)}' + node_sty + '↳  f' + leaf_sty + f'{prim.name} ({symbol.CHECK if prim.visible else symbol.CROSS}' + leaf_sty + f'): {prim.shape}  ⇣{prim._handle}" + style.RESET)
 
 
 def collision_circle_point(circle: Primitive, point: tuple[float, float]) -> bool:

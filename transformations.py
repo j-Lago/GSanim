@@ -3,10 +3,15 @@ import typing
 from copy import copy
 from colorsys import hls_to_rgb, rgb_to_hls
 
+from typing import Union
 
-type Numeric = float or int
-type Coords = list[Numeric, ...] or tuple[Numeric, ...]
-type Point = tuple[Numeric, Numeric]
+Numeric = Union[float, int]
+Coords = Union[list[Numeric, ...], tuple[Numeric, ...]]
+Point = tuple[Numeric, Numeric]
+
+# type Numeric = float or int
+# type Coords = list[Numeric, ...] or tuple[Numeric, ...]
+# type Point = tuple[Numeric, Numeric]
 
 
 def translate(coords: Coords, offset: Point) -> Coords:
